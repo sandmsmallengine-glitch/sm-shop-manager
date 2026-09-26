@@ -1,2 +1,283 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>S&M Shop Manager</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>body{font-family:system-ui;margin:0;background:#f3f5f7;color:#17202a}header{background:#18232d;color:#fff;padding:16px}main{max-width:1000px;margin:auto;padding:16px}.card{background:#fff;padding:16px;border-radius:12px;margin:12px 0;box-shadow:0 2px 8px #0001}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}input,select,button{padding:10px;border-radius:8px;border:1px solid #ccd3da;font:inherit}button{background:#18232d;color:#fff;cursor:pointer}.nav{display:flex;gap:6px;flex-wrap:wrap}.hide{display:none}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}.muted{color:#68737d}.pill{display:inline-block;padding:4px 8px;border-radius:15px;background:#e9eef2}</style></head><body><header><b>S&M Shop Manager</b><div>S&M Small Engine Repair</div></header><main><section id="login" class="card"><h2>Staff Login</h2><div class="grid"><input id="email" type="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"></div><button onclick="login()">Log In</button> <button onclick="signup()">Create Owner Account</button><p id="msg"></p></section><section id="app" class="hide"><div class="nav"><button onclick="tab('dash')">Dashboard</button><button onclick="tab('customers')">Customers</button><button onclick="tab('jobs')">Jobs</button><button onclick="tab('equipment')">Equipment</button><button onclick="tab('parts')">Parts</button><button onclick="tab('manual')">Shop Manual</button><button onclick="logout()">Log Out</button></div><div id="dash" class="tab"></div><div id="customers" class="tab hide"></div><div id="jobs" class="tab hide"></div><div id="equipment" class="tab hide"></div><div id="parts" class="tab hide"></div><div id="manual" class="tab hide"></div></section></main><script>const URL='https://zrqtljxyencgvckaqjcr.supabase.co',KEY='sb_publishable_qQi2hSa4zVvqi1fv-KuFgg_ctXSuNYm',db=supabase.createClient(URL,KEY);let D={customers:[],jobs:[],equipment:[],parts:[],manual:[]};const e=s=>String(s??'').replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x]));async function login(){let r=await db.auth.signInWithPassword({email:email.value,password:pass.value});msg.textContent=r.error?.message||'';if(!r.error)start()}async function signup(){let r=await db.auth.signUp({email:email.value,password:pass.value});msg.textContent=r.error?.message||'Account created. Check email if confirmation is required.';if(r.data.session)start()}async function logout(){await db.auth.signOut();location.reload()}async function start(){login.classList.add('hide');app.classList.remove('hide');await load();tab('dash')}async function load(){for(let k of Object.keys(D)){let t=k==='manual'?'shop_manual':k,r=await db.from(t).select('*').order('created_at',{ascending:false});if(!r.error)D[k]=r.data||[]}render()}function tab(id){document.querySelectorAll('.tab').forEach(x=>x.classList.add('hide'));document.getElementById(id).classList.remove('hide');render()}function render(){dash.innerHTML=`<div class=card><h2>Dashboard</h2><div class=grid><div><b>${D.customers.length}</b><br>Customers</div><div><b>${D.jobs.length}</b><br>Jobs</div><div><b>${D.parts.length}</b><br>Parts</div><div><b>${D.equipment.length}</b><br>Equipment</div></div></div><div class=card>Cloud database and staff authentication are active. AI suggestions stay separate from technician-confirmed findings.</div>`;customers.innerHTML=`<div class=card><h2>Customers</h2><div class=grid><input id=cn placeholder="Name"><input id=cp placeholder="Phone"><input id=ce placeholder="Email"></div><button onclick=addC()>Add Customer</button></div><div class=card>${D.customers.map(c=>`<p><b>${e(c.name)}</b><br>${e(c.phone||'')} ${e(c.email||'')}</p>`).join('')||'No customers yet.'}</div>`;jobs.innerHTML=`<div class=card><h2>Jobs</h2><div class=grid><select id=jc>${D.customers.map(c=>`<option value=${c.id}>${e(c.name)}</option>`).join('')}</select><input id=jx placeholder="Customer complaint"></div><button onclick=addJ()>Create Job</button></div><div class=card>${D.jobs.map(j=>{let c=D.customers.find(x=>x.id===j.customer_id);return `<p><b>Job #${j.job_number}</b> — ${e(c?.name||'')}<br>${e(j.complaint||'')}<br><span class=pill>${e(j.status)}</span> <button onclick="nextJ(\'${j.id}\')">Advance</button></p>`}).join('')}</div>`;</div>`;equipment.innerHTML=`<div class=card><h2>Equipment</h2><div class=grid><select id=ec>${D.customers.map(c=>`<option value=${c.id}>${e(c.name)}</option>`).join('')}</select><input id=et placeholder="Type"><input id=em placeholder="Manufacturer"><input id=emo placeholder="Model"><input id=es placeholder="Serial"></div><button onclick=addE()>Add Equipment</button></div><div class=card>${D.equipment.map(x=>`<p><b>${e(x.manufacturer)} ${e(x.model)}</b><br>${e(x.equipment_type)} | SN ${e(x.serial_number)}</p>`).join('')||'No equipment yet.'</div>`;parts.innerHTML=`<div class=card><h2>Parts</h2><div class=grid><input id=pn placeholder="Part #"><input id=pd placeholder="Description"><input id=ps placeholder="Supplier"><input id=pq type=number placeholder="Qty"><input id=pc type=number step=.01 placeholder="Cost"></div><button onclick=addP()>Add Part</button></div><div class=card>${D.parts.map(x=>`<p><b>${e(x.part_number)}</b> ${e(x.description)} — Qty ${x.quantity} — $${Number(x.cost||0).toFixed(2)}</p>`).join('')||'No parts yet.'</div>`;
-manual.innerHTML=`<div class=card><h2>Shop Manual</h2>${D.manual.map(m=>`<p><b>${e(m.equipment_type)} — ${e(m.service_category)}</b><br>${e(m.title)}<ol>${(m.steps||[]).map(s=>`<li>${e(s)}</li>`).join('')}</ol></p>`).join('<hr>')}</div>`}async function addC(){if(!cn.value.trim())return;await db.from('customers').insert({name:cn.value,phone:cp.value,email:ce.value});load()}async function addJ(){if(!jc.value)return;await db.from('jobs').insert({customer_id:jc.value,complaint:jx.value});load()}async function addE(){if(!ec.value)return;await db.from('equipment').insert({customer_id:ec.value,equipment_type:et.value,manufacturer:em.value,model:emo.value,serial_number:es.value});load()}async function addP(){if(!pd.value)return;await db.from('parts').insert({part_number:pn.value,description:pd.value,supplier:ps.value,quantity:+pq.value||0,cost:+pc.value||0});load()}async function nextJ(id){let j=D.jobs.find(x=>x.id===id),s=['NEW','DIAGNOSE','WAITING FOR CUSTOMER','PARTS','REPAIR','QC','READY FOR PICKUP','CLOSED'],n=s[Math.min(s.indexOf(j.status)+1,s.length-1)];await db.from('jobs').update({status:n}).eq('id',id);load()}db.auth.getSession().then(x=>{if(x.data.session)start()});</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S&M Shop Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f3f5f7;color:#17202a}
+header{background:#18232d;color:#fff;padding:16px}
+main{max-width:1050px;margin:auto;padding:16px}
+.card{background:#fff;padding:16px;border-radius:12px;margin:12px 0;box-shadow:0 2px 8px #0001}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+input,select,button{padding:11px;border-radius:8px;border:1px solid #ccd3da;font:inherit}
+button{background:#18232d;color:#fff;cursor:pointer}
+button.secondary{background:#fff;color:#18232d}
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.hide{display:none!important}.msg{margin-top:12px;font-weight:600}.muted{color:#68737d}.pill{display:inline-block;padding:4px 8px;border-radius:15px;background:#e9eef2}
+</style>
+</head>
+<body>
+<header><b>S&M Shop Manager</b><div>S&M Small Engine Repair</div></header>
+<main>
+<section id="login" class="card">
+<h2>Staff Login</h2>
+<div class="grid">
+<input id="email" type="email" placeholder="Email" autocomplete="email">
+<input id="pass" type="password" placeholder="Password" autocomplete="current-password">
+</div>
+<div style="margin-top:8px">
+<button id="loginBtn">Log In</button>
+<button id="signupBtn">Create Owner Account</button>
+</div>
+<p id="msg" class="msg"></p>
+<p class="muted">Owner account setup is enabled for the initial shop setup.</p>
+</section>
+
+<section id="app" class="hide">
+<div class="nav">
+<button data-tab="dash">Dashboard</button>
+<button data-tab="customers">Customers</button>
+<button data-tab="jobs">Jobs</button>
+<button data-tab="equipment">Equipment</button>
+<button data-tab="parts">Parts</button>
+<button data-tab="manual">Shop Manual</button>
+<button id="logoutBtn">Log Out</button>
+</div>
+<div id="dash" class="tab"></div>
+<div id="customers" class="tab hide"></div>
+<div id="jobs" class="tab hide"></div>
+<div id="equipment" class="tab hide"></div>
+<div id="parts" class="tab hide"></div>
+<div id="manual" class="tab hide"></div>
+</section>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://zrqtljxyencgvckaqjcr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qQi2hSa4zVvqi1fv-KuFgg_ctXSuNYm';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = function(id){ return document.getElementById(id); };
+const loginSection = $('login');
+const appSection = $('app');
+const msg = $('msg');
+const email = $('email');
+const pass = $('pass');
+
+const state = {customers:[],jobs:[],equipment:[],parts:[],manual:[]};
+const esc = function(v){
+  return String(v == null ? '' : v).replace(/[&<>]/g,function(ch){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch];
+  });
+};
+
+async function signup(){
+  try{
+    if(!email.value.trim() || !pass.value){
+      msg.textContent = 'Enter your email and password first.';
+      return;
+    }
+    if(pass.value.length < 6){
+      msg.textContent = 'Password must be at least 6 characters.';
+      return;
+    }
+    msg.textContent = 'Creating owner account...';
+    const r = await db.auth.signUp({email:email.value.trim(),password:pass.value});
+    if(r.error){
+      msg.textContent = r.error.message;
+      return;
+    }
+    if(r.data.session){
+      msg.textContent = 'Account created. Opening Shop Manager...';
+      await start();
+    }else{
+      msg.textContent = 'Account created. You can now log in.';
+    }
+  }catch(err){
+    msg.textContent = err && err.message ? err.message : String(err);
+  }
+}
+
+async function loginUser(){
+  try{
+    if(!email.value.trim() || !pass.value){
+      msg.textContent = 'Enter your email and password.';
+      return;
+    }
+    msg.textContent = 'Signing in...';
+    const r = await db.auth.signInWithPassword({email:email.value.trim(),password:pass.value});
+    if(r.error){
+      msg.textContent = r.error.message;
+      return;
+    }
+    await start();
+  }catch(err){
+    msg.textContent = err && err.message ? err.message : String(err);
+  }
+}
+
+async function logoutUser(){
+  await db.auth.signOut();
+  location.reload();
+}
+
+async function start(){
+  loginSection.classList.add('hide');
+  appSection.classList.remove('hide');
+  await load();
+  showTab('dash');
+}
+
+async function load(){
+  const tables = {customers:'customers',jobs:'jobs',equipment:'equipment',parts:'parts',manual:'shop_manual'};
+  for(const key in tables){
+    const r = await db.from(tables[key]).select('*').order('created_at',{ascending:false});
+    if(r.error){
+      console.error(tables[key],r.error);
+      continue;
+    }
+    state[key] = r.data || [];
+  }
+  render();
+}
+
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.add('hide');});
+  $(id).classList.remove('hide');
+  render();
+}
+
+function render(){
+  $('dash').innerHTML =
+    '<div class="card"><h2>Dashboard</h2><div class="grid">' +
+    '<div><b>'+state.customers.length+'</b><br>Customers</div>' +
+    '<div><b>'+state.jobs.length+'</b><br>Jobs</div>' +
+    '<div><b>'+state.parts.length+'</b><br>Parts</div>' +
+    '<div><b>'+state.equipment.length+'</b><br>Equipment</div>' +
+    '</div></div>' +
+    '<div class="card">Cloud database and staff authentication are connected. This is the current S&M Shop Manager foundation.</div>';
+
+  let customerRows = state.customers.map(function(c){
+    return '<p><b>'+esc(c.name)+'</b><br>'+esc(c.phone || '')+' '+esc(c.email || '')+'</p>';
+  }).join('');
+  if(!customerRows) customerRows = 'No customers yet.';
+  $('customers').innerHTML =
+    '<div class="card"><h2>Customers</h2><div class="grid">' +
+    '<input id="cn" placeholder="Name"><input id="cp" placeholder="Phone"><input id="ce" placeholder="Email">' +
+    '</div><button id="addCustomerBtn">Add Customer</button></div>' +
+    '<div class="card">'+customerRows+'</div>';
+
+  let customerOptions = state.customers.map(function(c){
+    return '<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>';
+  }).join('');
+
+  let jobRows = state.jobs.map(function(j){
+    const c = state.customers.find(function(x){return x.id === j.customer_id;});
+    return '<p><b>Job #'+esc(j.job_number)+'</b> — '+esc(c ? c.name : '')+
+      '<br>'+esc(j.complaint || '')+'<br><span class="pill">'+esc(j.status)+'</span> '+
+      '<button class="advanceBtn" data-id="'+esc(j.id)+'">Advance</button></p>';
+  }).join('');
+  if(!jobRows) jobRows = 'No jobs yet.';
+  $('jobs').innerHTML =
+    '<div class="card"><h2>Jobs</h2><div class="grid"><select id="jc">'+customerOptions+
+    '</select><input id="jx" placeholder="Customer complaint"></div><button id="addJobBtn">Create Job</button></div>'+
+    '<div class="card">'+jobRows+'</div>';
+
+  let equipmentRows = state.equipment.map(function(x){
+    return '<p><b>'+esc(x.manufacturer)+' '+esc(x.model)+'</b><br>'+esc(x.equipment_type)+' | SN '+esc(x.serial_number)+'</p>';
+  }).join('');
+  if(!equipmentRows) equipmentRows='No equipment yet.';
+  $('equipment').innerHTML =
+    '<div class="card"><h2>Equipment</h2><div class="grid"><select id="ec">'+customerOptions+
+    '</select><input id="et" placeholder="Type"><input id="em" placeholder="Manufacturer"><input id="emo" placeholder="Model"><input id="es" placeholder="Serial"></div>'+
+    '<button id="addEquipmentBtn">Add Equipment</button></div><div class="card">'+equipmentRows+'</div>';
+
+  let partRows = state.parts.map(function(x){
+    return '<p><b>'+esc(x.part_number)+'</b> '+esc(x.description)+' — Qty '+esc(x.quantity)+' — $'+Number(x.cost || 0).toFixed(2)+'</p>';
+  }).join('');
+  if(!partRows) partRows='No parts yet.';
+  $('parts').innerHTML =
+    '<div class="card"><h2>Parts</h2><div class="grid"><input id="pn" placeholder="Part #"><input id="pd" placeholder="Description"><input id="ps" placeholder="Supplier"><input id="pq" type="number" placeholder="Qty"><input id="pc" type="number" step=".01" placeholder="Cost"></div>'+
+    '<button id="addPartBtn">Add Part</button></div><div class="card">'+partRows+'</div>';
+
+  let manualRows = state.manual.map(function(m){
+    const steps = (m.steps || []).map(function(s){return '<li>'+esc(s)+'</li>';}).join('');
+    return '<p><b>'+esc(m.equipment_type)+' — '+esc(m.service_category)+'</b><br>'+esc(m.title)+
+      '<ol>'+steps+'</ol></p>';
+  }).join('<hr>');
+  if(!manualRows) manualRows='No shop manual entries yet.';
+  $('manual').innerHTML='<div class="card"><h2>Shop Manual</h2>'+manualRows+'</div>';
+
+  bindContentButtons();
+}
+
+function bindContentButtons(){
+  const addCustomerBtn=$('addCustomerBtn');
+  if(addCustomerBtn) addCustomerBtn.onclick=addCustomer;
+  const addJobBtn=$('addJobBtn');
+  if(addJobBtn) addJobBtn.onclick=addJob;
+  const addEquipmentBtn=$('addEquipmentBtn');
+  if(addEquipmentBtn) addEquipmentBtn.onclick=addEquipment;
+  const addPartBtn=$('addPartBtn');
+  if(addPartBtn) addPartBtn.onclick=addPart;
+  document.querySelectorAll('.advanceBtn').forEach(function(btn){
+    btn.onclick=function(){advanceJob(btn.dataset.id);};
+  });
+}
+
+async function addCustomer(){
+  const name=$('cn').value.trim();
+  if(!name) return;
+  const r=await db.from('customers').insert({name:name,phone:$('cp').value,email:$('ce').value});
+  if(r.error) alert(r.error.message); else await load();
+}
+
+async function addJob(){
+  if(!$('jc').value) return;
+  const r=await db.from('jobs').insert({customer_id:$('jc').value,complaint:$('jx').value});
+  if(r.error) alert(r.error.message); else await load();
+}
+
+async function addEquipment(){
+  if(!$('ec').value) return;
+  const r=await db.from('equipment').insert({
+    customer_id:$('ec').value,equipment_type:$('et').value,
+    manufacturer:$('em').value,model:$('emo').value,serial_number:$('es').value
+  });
+  if(r.error) alert(r.error.message); else await load();
+}
+
+async function addPart(){
+  if(!$('pd').value) return;
+  const r=await db.from('parts').insert({
+    part_number:$('pn').value,description:$('pd').value,supplier:$('ps').value,
+    quantity:Number($('pq').value)||0,cost:Number($('pc').value)||0
+  });
+  if(r.error) alert(r.error.message); else await load();
+}
+
+async function advanceJob(id){
+  const job=state.jobs.find(function(x){return x.id===id;});
+  if(!job) return;
+  const statuses=['NEW','DIAGNOSE','WAITING FOR CUSTOMER','PARTS','REPAIR','QC','READY FOR PICKUP','CLOSED'];
+  const i=statuses.indexOf(job.status);
+  const next=statuses[Math.min(i+1,statuses.length-1)];
+  const r=await db.from('jobs').update({status:next}).eq('id',id);
+  if(r.error) alert(r.error.message); else await load();
+}
+
+$('loginBtn').onclick=loginUser;
+$('signupBtn').onclick=signup;
+$('logoutBtn').onclick=logoutUser;
+document.querySelectorAll('[data-tab]').forEach(function(btn){
+  btn.onclick=function(){showTab(btn.dataset.tab);};
+});
+
+db.auth.getSession().then(function(r){
+  if(r.data && r.data.session) start();
+});
+</script>
+</body>
+</html>
